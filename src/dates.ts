@@ -131,3 +131,35 @@ export function compactTimeRange(startIso: string, endIso: string): string {
   }
   return `${compactTime(s)}–${end}`;
 }
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Sep 4" — fixed English abbreviations so output (and tests) don't depend on locale. */
+export function shortDate(d: Date): string {
+  return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+/**
+ * One-line range for the event row:
+ * - single timed day: "6–9 PM" ("6 PM" when zero-duration)
+ * - single all-day: "all-day"
+ * - multi-day timed: "Sep 4 12 PM – Sep 7 12 PM"
+ * - multi-day all-day: "Sep 4 – Sep 6" (all-day end dates are exclusive)
+ */
+export function formatRange(startIso: string, endIso: string, allDay: boolean): string {
+  const s = new Date(startIso);
+  const e = new Date(endIso);
+  const sameDay =
+    s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
+  if (sameDay) {
+    if (allDay) return "all-day";
+    if (+s === +e) return compactTime(s);
+    return compactTimeRange(startIso, endIso);
+  }
+  if (allDay) {
+    const last = new Date(e.getFullYear(), e.getMonth(), e.getDate() - 1);
+    if (dayStamp(last) <= dayStamp(s)) return "all-day";
+    return `${shortDate(s)} – ${shortDate(last)}`;
+  }
+  return `${shortDate(s)} ${compactTime(s)} – ${shortDate(e)} ${compactTime(e)}`;
+}

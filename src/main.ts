@@ -1,5 +1,5 @@
 import { App, FileSystemAdapter, ItemView, Platform, Plugin, PluginSettingTab, WorkspaceLeaf, Notice, Setting } from "obsidian";
-import { compactTimeRange, dayStamp, momentFormatToRegex, parseDateFromBasename, startOfDay, toLocalISO } from "./dates";
+import { dayStamp, formatRange, momentFormatToRegex, parseDateFromBasename, startOfDay, toLocalISO } from "./dates";
 
 // Node APIs are only available on desktop. Import lazily so mobile never parses them.
 declare const require: (id: string) => any;
@@ -403,7 +403,7 @@ class AppleCalendarView extends ItemView {
       const titleEl = li.createEl("div", { text: title, cls: "obs-apple-cal-title obs-apple-cal-open" });
       titleEl.setAttribute("title", `${title} — open in Calendar`);
       titleEl.onclick = () => void this.plugin.openInCalendar(ev);
-      const meta = [ev.allDay ? "all-day" : compactTimeRange(ev.start, ev.end)];
+      const meta = [formatRange(ev.start, ev.end, ev.allDay)];
       if (ev.calendar) meta.push(ev.calendar);
       const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-meta" });
       metaEl.setAttribute("title", meta.join(" · "));
