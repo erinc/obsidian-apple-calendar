@@ -1,5 +1,5 @@
 {
-  "name": "obs-apple-calendar",
+  "name": "obsidian-apple-calendar",
   "version": "0.1.0",
   "description": "Obsidian plugin: read-only Apple Calendar sidebar (macOS, EventKit helper)",
   "type": "module",

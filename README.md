@@ -30,7 +30,7 @@ npm run build           # bundles the plugin into main.js
 Then install into your vault:
 
 ```bash
-VAULT_PLUGINS="<vault>/.obsidian/plugins/obs-apple-calendar"
+VAULT_PLUGINS="<vault>/.obsidian/plugins/obsidian-apple-calendar"
 mkdir -p "$VAULT_PLUGINS/bin"
 cp manifest.json main.js styles.css "$VAULT_PLUGINS/"
 cp bin/apple-calendar-helper "$VAULT_PLUGINS/bin/"

@@ -127,7 +127,7 @@ export default class AppleCalendarPlugin extends Plugin {
   resolveHelperPath(): string {
     if (this.settings.helperPath.trim()) return this.settings.helperPath.trim();
     try {
-      // manifest.dir is vault-relative (".obsidian/plugins/obs-apple-calendar");
+      // manifest.dir is vault-relative (".obsidian/plugins/obsidian-apple-calendar");
       // resolve it against the vault root to an absolute path.
       const dir = (this as any).manifest?.dir as string | undefined;
       const adapter = this.app.vault.adapter;
@@ -408,40 +408,40 @@ class AppleCalendarView extends ItemView {
   private render() {
     const el = this.contentEl;
     el.empty();
-    el.addClass("obs-apple-calendar");
+    el.addClass("obsidian-apple-calendar");
 
     if (this.loading && this.events.length === 0) {
-      el.createEl("p", { text: "Loading…", cls: "obs-apple-cal-muted" });
+      el.createEl("p", { text: "Loading…", cls: "obsidian-apple-cal-muted" });
       return;
     }
     if (this.error && this.events.length === 0) {
-      el.createEl("p", { text: this.error, cls: "obs-apple-cal-error" });
+      el.createEl("p", { text: this.error, cls: "obsidian-apple-cal-error" });
       el.createEl("p", {
         text: "Read-only. Grant Calendars access in System Settings, then retry.",
-        cls: "obs-apple-cal-muted",
+        cls: "obsidian-apple-cal-muted",
       });
-      const retry = el.createEl("button", { text: "Retry", cls: "obs-apple-cal-retry" });
+      const retry = el.createEl("button", { text: "Retry", cls: "obsidian-apple-cal-retry" });
       retry.onclick = () => void this.refresh(false, true);
       return;
     }
     if (this.events.length === 0) {
-      el.createEl("p", { text: "No events this day.", cls: "obs-apple-cal-muted" });
+      el.createEl("p", { text: "No events this day.", cls: "obsidian-apple-cal-muted" });
       return;
     }
 
     const sorted = [...this.events].sort((a, b) => +new Date(a.start) - +new Date(b.start));
-    const ul = el.createEl("ul", { cls: "obs-apple-cal-list" });
+    const ul = el.createEl("ul", { cls: "obsidian-apple-cal-list" });
     for (const ev of sorted) {
-      const li = ul.createEl("li", { cls: "obs-apple-cal-item" });
+      const li = ul.createEl("li", { cls: "obsidian-apple-cal-item" });
       const title = ev.title || "(no title)";
-      const titleEl = li.createEl("div", { text: title, cls: "obs-apple-cal-title obs-apple-cal-open" });
+      const titleEl = li.createEl("div", { text: title, cls: "obsidian-apple-cal-title obsidian-apple-cal-open" });
       titleEl.setAttribute("title", `${title} — open in Calendar`);
       titleEl.onclick = () => void this.plugin.openInCalendar(ev);
       const range = formatRange(ev.start, ev.end, ev.allDay);
       const meta = range ? [range] : [];
       if (ev.calendar) meta.push(ev.calendar);
       if (meta.length > 0) {
-        const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-meta" });
+        const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obsidian-apple-cal-meta" });
         metaEl.setAttribute("title", meta.join(" · "));
       }
     }
@@ -531,7 +531,7 @@ class AppleCalSettingTab extends PluginSettingTab {
         const hidden = new Set(this.plugin.settings.hiddenCalendars);
         for (const cal of cals) {
           new Setting(containerEl)
-            .setClass("obs-apple-cal-compact")
+            .setClass("obsidian-apple-cal-compact")
             .setName(cal.title)
             .addToggle((t) =>
               t.setValue(!hidden.has(cal.id)).onChange(async (v) => {
