@@ -326,7 +326,27 @@ class AppleCalendarView extends ItemView {
   }
 
   async onOpen() {
+    this.registerEvent(this.app.workspace.on("layout-change", () => this.updateTabChrome()));
+    this.updateTabChrome();
     await this.refresh(true);
+  }
+
+  /**
+   * Hide our tab header when we're the only tab in the group (e.g. stacked
+   * under the calendar pane), so no redundant tab strip separates the views.
+   * Restored automatically when grouped with other tabs.
+   */
+  private updateTabChrome() {
+    try {
+      const leaf = this.leaf as any;
+      const header = (leaf?.tabHeaderEl ?? null) as HTMLElement | null;
+      if (!header) return;
+      const target = (header.closest(".workspace-tab-header-container") as HTMLElement | null) ?? header;
+      const siblings = (leaf?.parent?.children?.length ?? 1) as number;
+      target.style.display = siblings <= 1 ? "none" : "";
+    } catch {
+      // Non-standard layout — leave the chrome alone.
+    }
   }
 
   async refresh(quiet = false, force = false) {
