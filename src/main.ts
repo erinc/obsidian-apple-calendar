@@ -28,14 +28,12 @@ interface HelperResult {
 }
 
 interface AppleCalSettings {
-  helperPath: string;
   refreshMinutes: number;
   hideSoloTabHeader: boolean;
   hiddenCalendars: string[];
 }
 
 const DEFAULT_SETTINGS: AppleCalSettings = {
-  helperPath: "",
   refreshMinutes: 15,
   hideSoloTabHeader: true,
   hiddenCalendars: [],
@@ -122,9 +120,8 @@ export default class AppleCalendarPlugin extends Plugin {
     }
   }
 
-  /** Resolve the helper binary: explicit setting -> plugin bin/ -> PATH. */
+  /** Resolve the helper binary: plugin bin/ -> PATH. */
   resolveHelperPath(): string {
-    if (this.settings.helperPath.trim()) return this.settings.helperPath.trim();
     try {
       // manifest.dir is vault-relative (".obsidian/plugins/obsidian-apple-calendar");
       // resolve it against the vault root to an absolute path.
@@ -326,7 +323,7 @@ export default class AppleCalendarPlugin extends Plugin {
         if ((err as any)?.code === "ENOENT") {
           reject(
             new Error(
-              `Helper not found at "${helper}". Build it (npm run helper:build) or set its path in settings.`
+              `Helper not found at "${helper}". Build it (npm run helper:build) and copy it into the plugin's bin/ folder.`
             )
           );
         } else {
@@ -550,15 +547,6 @@ class AppleCalSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    new Setting(containerEl)
-      .setName("Helper path")
-      .setDesc("Path to apple-calendar-helper. Blank = plugin bin/ folder.")
-      .addText((t) =>
-        t.setValue(this.plugin.settings.helperPath).onChange(async (v) => {
-          this.plugin.settings.helperPath = v;
-          await this.plugin.saveSettings();
-        })
-      );
     new Setting(containerEl)
       .setName("Auto-refresh (minutes)")
       .setDesc("0 disables auto-refresh.")

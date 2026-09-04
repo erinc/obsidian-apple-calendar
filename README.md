@@ -71,9 +71,6 @@ format, not automation, so there is no Automation prompt.
 
 ## Settings
 
-- **Helper path** — where the Swift binary lives. Blank means the plugin's
-  own `bin/` folder; set it explicitly if you installed the binary
-  elsewhere.
 - **Auto-refresh (minutes)** — background re-fetch of the shown day.
   `0` disables it.
 - **Hide tab header when alone** — hides this pane's tab strip when it is
@@ -87,8 +84,9 @@ format, not automation, so there is no Automation prompt.
 
 ## Troubleshooting
 
-- *"Helper not found"* — the binary isn't where the plugin expects. Run
-  `npm run helper:build`, or point "Helper path" at it.
+- *"Helper not found"* — the binary isn't in the plugin's `bin/` folder.
+  Run `npm run helper:build` and copy `bin/apple-calendar-helper` there,
+  then Retry.
 - *"Calendar access denied"* — grant access under System Settings →
   Privacy & Security → Calendars, then Retry.
 - *Sidebar shows "Daily Notes is required"* — enable the Daily Notes core
