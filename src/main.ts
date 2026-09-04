@@ -149,12 +149,29 @@ export default class AppleCalendarPlugin extends Plugin {
   /** Daily Notes date format (moment-style), or null when unavailable. */
   getDailyNotesFormat(): string | null {
     try {
-      const plugin = (this.app as any).internalPlugins?.getPluginById?.("daily-notes");
-      const format = plugin?.enabled ? plugin?.instance?.options?.format : null;
+      const internals = (this.app as any).internalPlugins;
+      const raw =
+        internals?.getPluginById?.("daily-notes") ?? internals?.plugins?.["daily-notes"];
+      if (!raw || raw.enabled === false) return null;
+      // getPluginById returns a wrapper ({ enabled, instance }); accept the
+      // bare instance shape too so version drift can't lock the user out.
+      const format = raw.instance?.options?.format ?? raw.options?.format;
       return typeof format === "string" && format ? format : null;
     } catch {
       return null;
     }
+  }
+
+  /** Why date resolution failed, for the sidebar error. Null when resolvable. */
+  dateResolutionError(): string | null {
+    const format = this.getDailyNotesFormat();
+    if (!format) {
+      return "Daily Notes is required — enable the Daily Notes core plugin with a numeric date format (e.g. YYYY-MM-DD).";
+    }
+    if (!momentFormatToRegex(format)) {
+      return `Daily Notes format "${format}" can't be matched — switch Daily Notes to a numeric date format (e.g. YYYY-MM-DD).`;
+    }
+    return null;
   }
 
   /**
@@ -338,6 +355,7 @@ class AppleCalendarView extends ItemView {
   private plugin: AppleCalendarPlugin;
   private events: CalEvent[] = [];
   private error = "";
+  private errorHint = "";
   private loading = false;
 
   constructor(leaf: WorkspaceLeaf, plugin: AppleCalendarPlugin) {
@@ -392,7 +410,9 @@ class AppleCalendarView extends ItemView {
     const pattern = this.plugin.resolveDatePattern();
     if (!pattern) {
       this.error =
+        this.plugin.dateResolutionError() ??
         "Daily Notes is required — enable the Daily Notes core plugin with a numeric date format (e.g. YYYY-MM-DD).";
+      this.errorHint = "";
       this.loading = false;
       this.render();
       return;
@@ -400,8 +420,10 @@ class AppleCalendarView extends ItemView {
     try {
       this.events = await this.plugin.fetchEvents(force);
       this.error = "";
+      this.errorHint = "";
     } catch (e: any) {
       this.error = e?.message ?? String(e);
+      this.errorHint = "Read-only. Grant Calendars access in System Settings, then retry.";
       if (!quiet) new Notice(this.error);
     } finally {
       this.loading = false;
@@ -420,10 +442,9 @@ class AppleCalendarView extends ItemView {
     }
     if (this.error && this.events.length === 0) {
       el.createEl("p", { text: this.error, cls: "obsidian-apple-cal-error" });
-      el.createEl("p", {
-        text: "Read-only. Grant Calendars access in System Settings, then retry.",
-        cls: "obsidian-apple-cal-muted",
-      });
+      if (this.errorHint) {
+        el.createEl("p", { text: this.errorHint, cls: "obsidian-apple-cal-muted" });
+      }
       const retry = el.createEl("button", { text: "Retry", cls: "obsidian-apple-cal-retry" });
       retry.onclick = () => void this.refresh(false, true);
       return;

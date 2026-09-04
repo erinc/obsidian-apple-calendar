@@ -92,7 +92,9 @@ format, not automation, so there is no Automation prompt.
 - *"Calendar access denied"* — grant access under System Settings →
   Privacy & Security → Calendars, then Retry.
 - *Sidebar shows "Daily Notes is required"* — enable the Daily Notes core
-  plugin with a numeric date format (e.g. `YYYY-MM-DD`).
+  plugin with a numeric date format (e.g. `YYYY-MM-DD`). If it names your
+  format instead (`Daily Notes format "…" can't be matched`), switch Daily
+  Notes to a numeric format.
 - *Sidebar shows today instead of the note's day* — the note name doesn't
   match Daily Notes' format. Switch Daily Notes to a numeric format.
 - *Clicked event doesn't open* — the sidebar shows the reason in a notice.
