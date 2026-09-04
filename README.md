@@ -17,12 +17,14 @@ First run prompts for Calendars access (System Settings → Privacy & Security �
 
 ## Day following
 
-The sidebar shows events for the day of the currently open note (filename
-must contain `YYYY-MM-DD`; adjustable via the "Filename date pattern"
-setting as a regex with `(year, month, day)` groups). Notes without a date
-keep the last shown day; with nothing open it falls back to today. Turn
-"Follow open note" off to always show today. Fetched days are cached for
-5 minutes.
+The sidebar shows events for the day of the currently open note. By default
+the date matcher is derived from Daily Notes' own date format setting
+("Use Daily Notes format"), so numeric formats like `YYYY-MM-DD`,
+`DD-MM-YYYY`, or `M-D-YYYY` just work. Formats with month/weekday names
+can't be matched, nor can a disabled Daily Notes — then the "Fallback
+date pattern" regex is used. Notes without a date keep the last shown day;
+with nothing open it falls back to today. Turn "Follow open note" off to
+always show today. Fetched days are cached for 5 minutes.
 
 ## Helper CLI
 

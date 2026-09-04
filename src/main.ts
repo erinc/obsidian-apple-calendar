@@ -1,5 +1,5 @@
 import { App, FileSystemAdapter, ItemView, Platform, Plugin, PluginSettingTab, WorkspaceLeaf, Notice, Setting } from "obsidian";
-import { compactTimeRange, dayStamp, parseDateFromBasename, prettyDay, startOfDay, toLocalISO } from "./dates";
+import { compactTimeRange, dayStamp, momentFormatToRegex, parseDateFromBasename, prettyDay, startOfDay, toLocalISO } from "./dates";
 
 // Node APIs are only available on desktop. Import lazily so mobile never parses them.
 declare const require: (id: string) => any;
@@ -25,6 +25,7 @@ interface AppleCalSettings {
   helperPath: string;
   refreshMinutes: number;
   followActiveNote: boolean;
+  useDailyNotesFormat: boolean;
   datePattern: string;
 }
 
@@ -32,6 +33,7 @@ const DEFAULT_SETTINGS: AppleCalSettings = {
   helperPath: "",
   refreshMinutes: 15,
   followActiveNote: true,
+  useDailyNotesFormat: true,
   datePattern: "(\\d{4})-(\\d{2})-(\\d{2})",
 };
 
@@ -140,13 +142,36 @@ export default class AppleCalendarPlugin extends Plugin {
    * current day so browsing non-journal notes doesn't yank the calendar.
    * Returns true when the day changed.
    */
+  /** Daily Notes date format (moment-style), or null when unavailable. */
+  getDailyNotesFormat(): string | null {
+    try {
+      const plugin = (this.app as any).internalPlugins?.getPluginById?.("daily-notes");
+      const format = plugin?.enabled ? plugin?.instance?.options?.format : null;
+      return typeof format === "string" && format ? format : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Effective matcher: derived from Daily Notes when possible, else the manual fallback. */
+  resolveDatePattern(): { pattern: string; source: string } {
+    if (this.settings.useDailyNotesFormat) {
+      const format = this.getDailyNotesFormat();
+      if (format) {
+        const derived = momentFormatToRegex(format);
+        if (derived) return { pattern: derived, source: `Daily Notes (${format})` };
+      }
+    }
+    return { pattern: this.settings.datePattern, source: "fallback pattern" };
+  }
+
   updateDayFromActiveFile(): boolean {
     let day = startOfDay(new Date());
     let source = "Today";
     if (this.settings.followActiveNote) {
       const f = this.app.workspace.getActiveFile();
       if (f) {
-        const parsed = parseDateFromBasename(f.basename, this.settings.datePattern);
+        const parsed = parseDateFromBasename(f.basename, this.resolveDatePattern().pattern);
         if (parsed) {
           day = parsed;
           source = f.basename;
@@ -370,9 +395,28 @@ class AppleCalSettingTab extends PluginSettingTab {
           this.plugin.refreshAllViews(true);
         })
       );
+    const detected = this.plugin.getDailyNotesFormat();
+    const derived = detected ? momentFormatToRegex(detected) : null;
     new Setting(containerEl)
-      .setName("Filename date pattern")
-      .setDesc("Regex with (year, month, day) groups matched against the note name. Default fits YYYY-MM-DD.")
+      .setName("Use Daily Notes format")
+      .setDesc(
+        detected
+          ? derived
+            ? `Following Daily Notes ("${detected}").`
+            : `Daily Notes uses "${detected}", which has names/times — using the fallback below.`
+          : "Daily Notes not enabled — using the fallback below."
+      )
+      .addToggle((t) =>
+        t.setValue(this.plugin.settings.useDailyNotesFormat).onChange(async (v) => {
+          this.plugin.settings.useDailyNotesFormat = v;
+          await this.plugin.saveSettings();
+          this.plugin.updateDayFromActiveFile();
+          this.plugin.refreshAllViews(true);
+        })
+      );
+    new Setting(containerEl)
+      .setName("Fallback date pattern")
+      .setDesc("Regex with (year, month, day) groups, used when Daily Notes is off or unreadable.")
       .addText((t) =>
         t.setValue(this.plugin.settings.datePattern).onChange(async (v) => {
           this.plugin.settings.datePattern = v;
