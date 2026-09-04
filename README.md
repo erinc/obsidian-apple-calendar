@@ -1,0 +1,32 @@
+# Apple Calendar (Read-Only) — Obsidian plugin
+
+macOS desktop-only. Reads events via a tiny Swift EventKit helper, shows them in the right sidebar. No writes.
+
+## Build
+
+```bash
+npm install
+npm run helper:build   # swift build -c release, copies to bin/
+npm run build
+```
+
+Copy `manifest.json`, `main.js`, `styles.css`, and `bin/` into
+`<vault>/.obsidian/plugins/obs-apple-calendar/` and enable in Obsidian.
+
+First run prompts for Calendars access (System Settings → Privacy & Security → Calendars).
+
+## Day following
+
+The sidebar shows events for the day of the currently open note (filename
+must contain `YYYY-MM-DD`; adjustable via the "Filename date pattern"
+setting as a regex with `(year, month, day)` groups). Notes without a date
+keep the last shown day; with nothing open it falls back to today. Turn
+"Follow open note" off to always show today. Fetched days are cached for
+5 minutes.
+
+## Helper CLI
+
+```bash
+./bin/apple-calendar-helper --days 7 --json
+./bin/apple-calendar-helper calendars
+```

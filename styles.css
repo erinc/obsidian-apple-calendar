@@ -1,0 +1,11 @@
+.obs-apple-calendar { padding: 8px 10px; }
+.obs-apple-cal-header { display: flex; align-items: center; justify-content: space-between; }
+.obs-apple-cal-header h4 { margin: 0; }
+.obs-apple-cal-header button { cursor: pointer; }
+.obs-apple-cal-day { margin: 12px 0 4px; }
+.obs-apple-cal-list { list-style: none; margin: 0; padding: 0; }
+.obs-apple-cal-item { display: flex; gap: 8px; padding: 4px 0; border-top: 1px solid var(--background-modifier-border); }
+.obs-apple-cal-time { white-space: nowrap; font-variant-numeric: tabular-nums; opacity: 0.85; min-width: 110px; }
+.obs-apple-cal-title { font-weight: 600; }
+.obs-apple-cal-muted { opacity: 0.7; font-size: 0.85em; }
+.obs-apple-cal-error { color: var(--text-error); white-space: pre-wrap; }

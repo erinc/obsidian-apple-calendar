@@ -1,0 +1,5 @@
+node_modules/
+main.js
+bin/apple-calendar-helper
+swift/.build/
+.DS_Store
