@@ -140,9 +140,9 @@ export function shortDate(d: Date): string {
 }
 
 /**
- * One-line range for the event row:
+ * One-line range for the event row ("" when there is nothing worth saying,
+ * i.e. single-day all-day events — the row then shows just the calendar):
  * - single timed day: "6–9 PM" ("6 PM" when zero-duration)
- * - single all-day: "all-day"
  * - multi-day (timed or all-day): "Sep 4 – Sep 7"
  *   (all-day end dates are exclusive, so those shift back one day)
  */
@@ -152,13 +152,13 @@ export function formatRange(startIso: string, endIso: string, allDay: boolean): 
   const sameDay =
     s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
   if (sameDay) {
-    if (allDay) return "all-day";
+    if (allDay) return "";
     if (+s === +e) return compactTime(s);
     return compactTimeRange(startIso, endIso);
   }
   if (allDay) {
     const last = new Date(e.getFullYear(), e.getMonth(), e.getDate() - 1);
-    if (dayStamp(last) <= dayStamp(s)) return "all-day";
+    if (dayStamp(last) <= dayStamp(s)) return "";
     return `${shortDate(s)} – ${shortDate(last)}`;
   }
   return `${shortDate(s)} – ${shortDate(e)}`;

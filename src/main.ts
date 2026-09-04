@@ -403,10 +403,13 @@ class AppleCalendarView extends ItemView {
       const titleEl = li.createEl("div", { text: title, cls: "obs-apple-cal-title obs-apple-cal-open" });
       titleEl.setAttribute("title", `${title} — open in Calendar`);
       titleEl.onclick = () => void this.plugin.openInCalendar(ev);
-      const meta = [formatRange(ev.start, ev.end, ev.allDay)];
+      const range = formatRange(ev.start, ev.end, ev.allDay);
+      const meta = range ? [range] : [];
       if (ev.calendar) meta.push(ev.calendar);
-      const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-meta" });
-      metaEl.setAttribute("title", meta.join(" · "));
+      if (meta.length > 0) {
+        const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-meta" });
+        metaEl.setAttribute("title", meta.join(" · "));
+      }
     }
   }
 }

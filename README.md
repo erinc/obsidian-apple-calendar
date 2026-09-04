@@ -24,9 +24,10 @@ the date matcher is derived from Daily Notes' own date format setting
 can't be matched, nor can a disabled Daily Notes — then the "Fallback
 date pattern" regex is used. Notes without a date keep the last shown day;
 with nothing open it falls back to today. Each event shows its title plus
-a one-line summary (no location): `6–9 PM · Personal` for single-day events,
-`Sep 4 – Sep 7` for multi-day events (`Sep 4 – Sep 6` when all-day, whose
-end dates are exclusive). Fetched days are cached for 5 minutes.
+a one-line summary (no location): `6–9 PM · Personal` for single-day events
+(single-day all-day events show just the calendar), `Sep 4 – Sep 7` for
+multi-day events (`Sep 4 – Sep 6` when all-day, whose end dates are
+exclusive). Fetched days are cached for 5 minutes.
 
 ## Opening events
 
