@@ -29,6 +29,12 @@ a one-line summary (no location): `6–9 PM · Personal` for single-day events
 multi-day events (`Sep 4 – Sep 6` when all-day, whose end dates are
 exclusive). Fetched days are cached for 5 minutes.
 
+## Calendars
+
+Settings lists every macOS calendar with a toggle; unchecked calendars are
+hidden (new calendars show by default). Hiding uses stable calendar IDs, so
+two calendars with the same name are treated independently.
+
 ## Opening events
 
 Click an event title to open it in Calendar.app via its `ical://ekevent/…`

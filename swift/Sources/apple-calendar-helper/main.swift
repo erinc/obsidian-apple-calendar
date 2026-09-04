@@ -13,6 +13,7 @@ struct CalEvent: Encodable {
   let end: String
   let allDay: Bool
   let calendar: String
+  let calendarId: String
   let location: String?
   let url: String?
 }
@@ -91,9 +92,9 @@ guard requestAccess(store) else {
 }
 
 if listCalendars {
-  struct Cal: Encodable { let title: String; let type: String; let allowsContentModifications: Bool }
+  struct Cal: Encodable { let id: String; let title: String; let type: String; let allowsContentModifications: Bool }
   let cals = (store.calendars(for: .event)).map {
-    Cal(title: $0.title, type: "\($0.source.sourceType.rawValue)", allowsContentModifications: $0.allowsContentModifications)
+    Cal(id: $0.calendarIdentifier, title: $0.title, type: "\($0.source.sourceType.rawValue)", allowsContentModifications: $0.allowsContentModifications)
   }
   let data = try! JSONEncoder().encode(["calendars": cals])
   print(String(data: data, encoding: .utf8)!)
@@ -126,6 +127,7 @@ for ev: EKEvent in ekEvents {
     end: isoOut.string(from: ev.endDate),
     allDay: ev.isAllDay,
     calendar: ev.calendar.title,
+    calendarId: ev.calendar.calendarIdentifier,
     location: ev.location,
     url: ev.url?.absoluteString
   )

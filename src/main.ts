@@ -13,8 +13,14 @@ interface CalEvent {
   end: string; // ISO8601
   allDay: boolean;
   calendar: string;
+  calendarId: string;
   location?: string;
   url?: string;
+}
+
+interface HelperCalendar {
+  id: string;
+  title: string;
 }
 
 interface HelperResult {
@@ -27,6 +33,7 @@ interface AppleCalSettings {
   useDailyNotesFormat: boolean;
   datePattern: string;
   hideSoloTabHeader: boolean;
+  hiddenCalendars: string[];
 }
 
 const DEFAULT_SETTINGS: AppleCalSettings = {
@@ -35,6 +42,7 @@ const DEFAULT_SETTINGS: AppleCalSettings = {
   useDailyNotesFormat: true,
   datePattern: "(\\d{4})-(\\d{2})-(\\d{2})",
   hideSoloTabHeader: true,
+  hiddenCalendars: [],
 };
 
 export default class AppleCalendarPlugin extends Plugin {
@@ -193,7 +201,7 @@ export default class AppleCalendarPlugin extends Plugin {
     const key = dayStamp(this.currentDay);
     const cached = this.eventCache.get(key);
     if (!force && cached && Date.now() - cached.at < 5 * 60 * 1000) {
-      return Promise.resolve(cached.events);
+      return Promise.resolve(this.applyCalendarFilter(cached.events));
     }
     return this.runHelperForDay(this.currentDay).then((events) => {
       this.eventCache.set(key, { at: Date.now(), events });
@@ -201,12 +209,19 @@ export default class AppleCalendarPlugin extends Plugin {
         const oldest = [...this.eventCache.keys()].sort()[0];
         this.eventCache.delete(oldest);
       }
-      return events;
+      return this.applyCalendarFilter(events);
     });
   }
 
-  /** Run the Swift helper for one local day and parse its JSON. Throws with a human message. */
-  private runHelperForDay(day: Date): Promise<CalEvent[]> {
+  /** Drop events from hidden calendars (applied after the cache, so toggles take effect immediately). */
+  private applyCalendarFilter(events: CalEvent[]): CalEvent[] {
+    if (this.settings.hiddenCalendars.length === 0) return events;
+    const hidden = new Set(this.settings.hiddenCalendars);
+    return events.filter((ev) => !hidden.has(ev.calendarId || ev.calendar));
+  }
+
+  /** Spawn the helper, resolving with stdout. Rejects with a human message. */
+  private spawnHelper(args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
       if (!Platform.isDesktop || !Platform.isMacOS) {
         reject(new Error("Apple Calendar view is macOS desktop only."));
@@ -221,9 +236,6 @@ export default class AppleCalendarPlugin extends Plugin {
         return;
       }
       const helper = this.resolveHelperPath();
-      const from = new Date(day);
-      const to = new Date(day.getTime() + 24 * 60 * 60 * 1000);
-      const args = ["--from", toLocalISO(from), "--to", toLocalISO(to), "--json"];
       const child = spawn(helper, args, { timeout: 15000 });
 
       let stdout = "";
@@ -256,14 +268,36 @@ export default class AppleCalendarPlugin extends Plugin {
           }
           return;
         }
+        resolve(stdout);
+      });
+    });
+  }
+
+  /** Run the Swift helper for one local day and parse its JSON. Throws with a human message. */
+  private runHelperForDay(day: Date): Promise<CalEvent[]> {
+    const from = new Date(day);
+    const to = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+    return this.spawnHelper(["--from", toLocalISO(from), "--to", toLocalISO(to), "--json"]).then(
+      (stdout) => {
         try {
           const parsed = JSON.parse(stdout) as HelperResult | CalEvent[];
-          const events = Array.isArray(parsed) ? parsed : parsed.events ?? [];
-          resolve(events);
+          return Array.isArray(parsed) ? parsed : parsed.events ?? [];
         } catch {
-          reject(new Error(`Calendar helper returned invalid JSON: ${stdout.slice(0, 200)}`));
+          throw new Error(`Calendar helper returned invalid JSON: ${stdout.slice(0, 200)}`);
         }
-      });
+      }
+    );
+  }
+
+  /** List available calendars via the helper. Throws with a human message. */
+  listCalendars(): Promise<HelperCalendar[]> {
+    return this.spawnHelper(["calendars"]).then((stdout) => {
+      try {
+        const parsed = JSON.parse(stdout) as { calendars: HelperCalendar[] };
+        return parsed.calendars ?? [];
+      } catch {
+        throw new Error(`Calendar helper returned invalid JSON: ${stdout.slice(0, 200)}`);
+      }
     });
   }
 
@@ -484,5 +518,33 @@ class AppleCalSettingTab extends PluginSettingTab {
           }
         })
       );
+    const calSection = new Setting(containerEl)
+      .setName("Calendars")
+      .setDesc("Loading calendar list…");
+    void this.plugin.listCalendars().then(
+      (cals) => {
+        if (cals.length === 0) {
+          calSection.setDesc("No calendars found.");
+          return;
+        }
+        calSection.setDesc("Uncheck calendars to hide their events. New calendars show by default.");
+        const hidden = new Set(this.plugin.settings.hiddenCalendars);
+        for (const cal of cals) {
+          new Setting(containerEl).setName(cal.title).addToggle((t) =>
+            t.setValue(!hidden.has(cal.id)).onChange(async (v) => {
+              const next = new Set(this.plugin.settings.hiddenCalendars);
+              if (v) next.delete(cal.id);
+              else next.add(cal.id);
+              this.plugin.settings.hiddenCalendars = [...next];
+              await this.plugin.saveSettings();
+              this.plugin.refreshAllViews(true);
+            })
+          );
+        }
+      },
+      (err: Error) => {
+        calSection.setDesc(`Could not load calendars: ${err.message}`);
+      }
+    );
   }
 }
