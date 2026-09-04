@@ -143,8 +143,8 @@ export function shortDate(d: Date): string {
  * One-line range for the event row:
  * - single timed day: "6–9 PM" ("6 PM" when zero-duration)
  * - single all-day: "all-day"
- * - multi-day timed: "Sep 4 12 PM – Sep 7 12 PM"
- * - multi-day all-day: "Sep 4 – Sep 6" (all-day end dates are exclusive)
+ * - multi-day (timed or all-day): "Sep 4 – Sep 7"
+ *   (all-day end dates are exclusive, so those shift back one day)
  */
 export function formatRange(startIso: string, endIso: string, allDay: boolean): string {
   const s = new Date(startIso);
@@ -161,5 +161,5 @@ export function formatRange(startIso: string, endIso: string, allDay: boolean): 
     if (dayStamp(last) <= dayStamp(s)) return "all-day";
     return `${shortDate(s)} – ${shortDate(last)}`;
   }
-  return `${shortDate(s)} ${compactTime(s)} – ${shortDate(e)} ${compactTime(e)}`;
+  return `${shortDate(s)} – ${shortDate(e)}`;
 }
