@@ -57,10 +57,10 @@ format, not automation, so there is no Automation prompt.
 - Open a note without a date and the sidebar keeps showing the last day,
   so browsing around doesn't yank the list. With nothing open, it shows
   today.
-- The date is read from Daily Notes' own date-format setting when possible,
-  so `YYYY-MM-DD`, `DD-MM-YYYY`, `M-D-YYYY`, and similar numeric formats
-  just work. Formats with month or weekday names can't be matched — the
-  fallback pattern in settings covers those cases.
+- Daily Notes is required: enable the Daily Notes core plugin with a
+  numeric date format. `YYYY-MM-DD`, `DD-MM-YYYY`, `M-D-YYYY`, and similar
+  numeric formats just work. Formats with month or weekday names can't be
+  matched — the sidebar shows an error until you switch to a numeric format.
 - Each row's summary line: times for single-day events (`6–9 PM`),
   date spans for multi-day events (`Sep 4 – Sep 7`; all-day spans shift
   back one day because all-day end dates are exclusive, e.g. `Sep 4 – Sep 6`
@@ -80,10 +80,8 @@ format, not automation, so there is no Automation prompt.
   the only tab in its group, so it sits flush under other sidebar panes
   (e.g. the Calendar plugin). The header returns automatically if another
   tab joins the group.
-- **Use Daily Notes format** — derive the note-date matcher from Daily
-  Notes' setting (recommended). The tab shows what was detected.
-- **Fallback date pattern** — regex with `(year, month, day)` groups, used
-  when Daily Notes is disabled or uses an unmatchable format.
+- **Daily Notes** — required, not a setting. The note-date matcher is
+  derived from Daily Notes' date-format setting; numeric formats only.
 - **Calendars** — one toggle per macOS calendar, loaded live. Unchecked
   calendars are hidden immediately. New calendars appear checked.
 
@@ -93,9 +91,10 @@ format, not automation, so there is no Automation prompt.
   `npm run helper:build`, or point "Helper path" at it.
 - *"Calendar access denied"* — grant access under System Settings →
   Privacy & Security → Calendars, then Retry.
+- *Sidebar shows "Daily Notes is required"* — enable the Daily Notes core
+  plugin with a numeric date format (e.g. `YYYY-MM-DD`).
 - *Sidebar shows today instead of the note's day* — the note name doesn't
-  match Daily Notes' format. Check "Use Daily Notes format" status in
-  settings, or adjust the fallback pattern.
+  match Daily Notes' format. Switch Daily Notes to a numeric format.
 - *Clicked event doesn't open* — the sidebar shows the reason in a notice.
   Recurring occurrences open their series (occurrences share one ID).
 - *Empty day* — "No events this day." Hidden calendars are the usual

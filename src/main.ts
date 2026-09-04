@@ -30,8 +30,6 @@ interface HelperResult {
 interface AppleCalSettings {
   helperPath: string;
   refreshMinutes: number;
-  useDailyNotesFormat: boolean;
-  datePattern: string;
   hideSoloTabHeader: boolean;
   hiddenCalendars: string[];
 }
@@ -39,8 +37,6 @@ interface AppleCalSettings {
 const DEFAULT_SETTINGS: AppleCalSettings = {
   helperPath: "",
   refreshMinutes: 15,
-  useDailyNotesFormat: true,
-  datePattern: "(\\d{4})-(\\d{2})-(\\d{2})",
   hideSoloTabHeader: true,
   hiddenCalendars: [],
 };
@@ -71,7 +67,8 @@ export default class AppleCalendarPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("file-open", () => this.onActiveFileChanged()));
 
     this.app.workspace.onLayoutReady(() => {
-      this.updateDayFromActiveFile();
+      const pattern = this.resolveDatePattern();
+      if (pattern) this.updateDayFromActiveFile(pattern);
       this.activateView(true);
       this.refreshAllViews(true);
     });
@@ -140,9 +137,8 @@ export default class AppleCalendarPlugin extends Plugin {
     return "apple-calendar-helper";
   }
 
-  /** Day shown in the sidebar (local start-of-day) and where it came from. */
+  /** Day shown in the sidebar (local start-of-day). */
   currentDay: Date = startOfDay(new Date());
-  currentDaySource = "Today";
   private eventCache = new Map<string, { at: number; events: CalEvent[] }>();
 
   /**
@@ -161,39 +157,39 @@ export default class AppleCalendarPlugin extends Plugin {
     }
   }
 
-  /** Effective matcher: derived from Daily Notes when possible, else the manual fallback. */
-  resolveDatePattern(): { pattern: string; source: string } {
-    if (this.settings.useDailyNotesFormat) {
-      const format = this.getDailyNotesFormat();
-      if (format) {
-        const derived = momentFormatToRegex(format);
-        if (derived) return { pattern: derived, source: `Daily Notes (${format})` };
-      }
-    }
-    return { pattern: this.settings.datePattern, source: "fallback pattern" };
+  /**
+   * Matcher derived from Daily Notes only. Null when Daily Notes is
+   * disabled or its format is unmatchable (month/weekday names, times).
+   */
+  resolveDatePattern(): string | null {
+    const format = this.getDailyNotesFormat();
+    if (!format) return null;
+    return momentFormatToRegex(format);
   }
 
-  updateDayFromActiveFile(): boolean {
+  updateDayFromActiveFile(pattern: string): boolean {
     let day = startOfDay(new Date());
-    let source = "Today";
     const f = this.app.workspace.getActiveFile();
     if (f) {
-      const parsed = parseDateFromBasename(f.basename, this.resolveDatePattern().pattern);
+      const parsed = parseDateFromBasename(f.basename, pattern);
       if (parsed) {
         day = parsed;
-        source = f.basename;
-      } else if (this.currentDaySource !== "Today") {
+      } else {
         return false;
       }
     }
     if (+day === +this.currentDay) return false;
     this.currentDay = day;
-    this.currentDaySource = source;
     return true;
   }
 
   onActiveFileChanged() {
-    if (this.updateDayFromActiveFile()) this.refreshAllViews(true);
+    const pattern = this.resolveDatePattern();
+    if (!pattern) {
+      this.refreshAllViews(true);
+      return;
+    }
+    if (this.updateDayFromActiveFile(pattern)) this.refreshAllViews(true);
   }
 
   /** Events for the current day (5-minute in-memory cache per day). */
@@ -393,6 +389,14 @@ class AppleCalendarView extends ItemView {
     if (this.loading) return;
     this.loading = true;
     if (!quiet) this.render();
+    const pattern = this.plugin.resolveDatePattern();
+    if (!pattern) {
+      this.error =
+        "Daily Notes is required — enable the Daily Notes core plugin with a numeric date format (e.g. YYYY-MM-DD).";
+      this.loading = false;
+      this.render();
+      return;
+    }
     try {
       this.events = await this.plugin.fetchEvents(force);
       this.error = "";
@@ -464,36 +468,6 @@ class AppleCalSettingTab extends PluginSettingTab {
         t.setValue(this.plugin.settings.helperPath).onChange(async (v) => {
           this.plugin.settings.helperPath = v;
           await this.plugin.saveSettings();
-        })
-      );
-    const detected = this.plugin.getDailyNotesFormat();
-    const derived = detected ? momentFormatToRegex(detected) : null;
-    new Setting(containerEl)
-      .setName("Use Daily Notes format")
-      .setDesc(
-        detected
-          ? derived
-            ? `Following Daily Notes ("${detected}").`
-            : `Daily Notes uses "${detected}", which has names/times — using the fallback below.`
-          : "Daily Notes not enabled — using the fallback below."
-      )
-      .addToggle((t) =>
-        t.setValue(this.plugin.settings.useDailyNotesFormat).onChange(async (v) => {
-          this.plugin.settings.useDailyNotesFormat = v;
-          await this.plugin.saveSettings();
-          this.plugin.updateDayFromActiveFile();
-          this.plugin.refreshAllViews(true);
-        })
-      );
-    new Setting(containerEl)
-      .setName("Fallback date pattern")
-      .setDesc("Regex with (year, month, day) groups, used when Daily Notes is off or unreadable.")
-      .addText((t) =>
-        t.setValue(this.plugin.settings.datePattern).onChange(async (v) => {
-          this.plugin.settings.datePattern = v;
-          await this.plugin.saveSettings();
-          this.plugin.updateDayFromActiveFile();
-          this.plugin.refreshAllViews(true);
         })
       );
     new Setting(containerEl)
