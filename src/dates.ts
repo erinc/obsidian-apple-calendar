@@ -41,3 +41,26 @@ export function parseDateFromBasename(name: string, pattern: string): Date | nul
 export function prettyDay(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
+
+function period(d: Date): string {
+  return d.getHours() < 12 ? "AM" : "PM";
+}
+
+/** "6 PM", "6:30 PM" — drops :00 to save width. */
+export function compactTime(d: Date): string {
+  const h = d.getHours() % 12 || 12;
+  const m = d.getMinutes();
+  return `${h}${m ? `:${pad(m)}` : ""} ${period(d)}`;
+}
+
+/** "6–9 PM", "6–9:30 PM", "11 AM–1 PM". */
+export function compactTimeRange(startIso: string, endIso: string): string {
+  const s = new Date(startIso);
+  const e = new Date(endIso);
+  const end = compactTime(e);
+  if (period(s) === period(e)) {
+    const start = compactTime(s).replace(/ [AP]M$/, "");
+    return `${start}–${end}`;
+  }
+  return `${compactTime(s)}–${end}`;
+}

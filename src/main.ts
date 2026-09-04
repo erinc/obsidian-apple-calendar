@@ -1,5 +1,5 @@
 import { App, FileSystemAdapter, ItemView, Platform, Plugin, PluginSettingTab, WorkspaceLeaf, Notice, Setting } from "obsidian";
-import { dayStamp, parseDateFromBasename, prettyDay, startOfDay, toLocalISO } from "./dates";
+import { compactTimeRange, dayStamp, parseDateFromBasename, prettyDay, startOfDay, toLocalISO } from "./dates";
 
 // Node APIs are only available on desktop. Import lazily so mobile never parses them.
 declare const require: (id: string) => any;
@@ -294,13 +294,15 @@ class AppleCalendarView extends ItemView {
     el.addClass("obs-apple-calendar");
 
     const header = el.createDiv({ cls: "obs-apple-cal-header" });
-    const titleWrap = header.createDiv();
+    const titleWrap = header.createDiv({ cls: "obs-apple-cal-titles" });
     titleWrap.createEl("h4", { text: "Apple Calendar" });
-    titleWrap.createEl("div", {
-      text: `${prettyDay(this.plugin.currentDay)} · ${this.plugin.currentDaySource}`,
-      cls: "obs-apple-cal-muted",
+    titleWrap.createEl("div", { text: this.subLine(), cls: "obs-apple-cal-sub" });
+    const btn = header.createEl("button", {
+      text: this.loading ? "…" : "↻",
+      cls: "obs-apple-cal-refresh",
     });
-    const btn = header.createEl("button", { text: this.loading ? "…" : "Refresh" });
+    btn.setAttribute("title", "Refresh");
+    btn.setAttribute("aria-label", "Refresh");
     btn.onclick = () => void this.refresh();
 
     if (this.loading && this.events.length === 0) {
@@ -324,24 +326,27 @@ class AppleCalendarView extends ItemView {
     const ul = el.createEl("ul", { cls: "obs-apple-cal-list" });
     for (const ev of sorted) {
       const li = ul.createEl("li", { cls: "obs-apple-cal-item" });
-      const time = ev.allDay ? "all-day" : timeRange(ev.start, ev.end);
-      li.createEl("span", { text: time, cls: "obs-apple-cal-time" });
-      const body = li.createDiv({ cls: "obs-apple-cal-body" });
-      body.createEl("div", { text: ev.title || "(no title)", cls: "obs-apple-cal-title" });
-      const meta: string[] = [];
+      const title = ev.title || "(no title)";
+      const titleEl = li.createEl("div", { text: title, cls: "obs-apple-cal-title" });
+      titleEl.setAttribute("title", title);
+      const meta = [ev.allDay ? "all-day" : compactTimeRange(ev.start, ev.end)];
       if (ev.calendar) meta.push(ev.calendar);
       if (ev.location) meta.push(ev.location);
-      if (meta.length) body.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-muted" });
+      const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-meta" });
+      metaEl.setAttribute("title", meta.join(" · "));
     }
+  }
+
+  /** "Friday, Sep 4" — plus the note name only when it isn't just the date. */
+  private subLine(): string {
+    const day = prettyDay(this.plugin.currentDay);
+    const src = this.plugin.currentDaySource;
+    if (src === "Today" || src.includes(dayStamp(this.plugin.currentDay))) return day;
+    return `${day} · ${src}`;
   }
 }
 
 
-
-function timeRange(startIso: string, endIso: string): string {
-  const fmt = (d: Date) => d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  return `${fmt(new Date(startIso))} – ${fmt(new Date(endIso))}`;
-}
 
 class AppleCalSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: AppleCalendarPlugin) {
