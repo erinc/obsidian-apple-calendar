@@ -1,5 +1,5 @@
 import { App, FileSystemAdapter, ItemView, Platform, Plugin, PluginSettingTab, WorkspaceLeaf, Notice, Setting } from "obsidian";
-import { compactTimeRange, dayStamp, momentFormatToRegex, parseDateFromBasename, prettyDay, startOfDay, toLocalISO } from "./dates";
+import { compactTimeRange, dayStamp, momentFormatToRegex, parseDateFromBasename, startOfDay, toLocalISO } from "./dates";
 
 // Node APIs are only available on desktop. Import lazily so mobile never parses them.
 declare const require: (id: string) => any;
@@ -24,7 +24,6 @@ interface HelperResult {
 interface AppleCalSettings {
   helperPath: string;
   refreshMinutes: number;
-  followActiveNote: boolean;
   useDailyNotesFormat: boolean;
   datePattern: string;
 }
@@ -32,7 +31,6 @@ interface AppleCalSettings {
 const DEFAULT_SETTINGS: AppleCalSettings = {
   helperPath: "",
   refreshMinutes: 15,
-  followActiveNote: true,
   useDailyNotesFormat: true,
   datePattern: "(\\d{4})-(\\d{2})-(\\d{2})",
 };
@@ -168,16 +166,14 @@ export default class AppleCalendarPlugin extends Plugin {
   updateDayFromActiveFile(): boolean {
     let day = startOfDay(new Date());
     let source = "Today";
-    if (this.settings.followActiveNote) {
-      const f = this.app.workspace.getActiveFile();
-      if (f) {
-        const parsed = parseDateFromBasename(f.basename, this.resolveDatePattern().pattern);
-        if (parsed) {
-          day = parsed;
-          source = f.basename;
-        } else if (this.currentDaySource !== "Today") {
-          return false;
-        }
+    const f = this.app.workspace.getActiveFile();
+    if (f) {
+      const parsed = parseDateFromBasename(f.basename, this.resolveDatePattern().pattern);
+      if (parsed) {
+        day = parsed;
+        source = f.basename;
+      } else if (this.currentDaySource !== "Today") {
+        return false;
       }
     }
     if (+day === +this.currentDay) return false;
@@ -318,11 +314,6 @@ class AppleCalendarView extends ItemView {
     el.empty();
     el.addClass("obs-apple-calendar");
 
-    const header = el.createDiv({ cls: "obs-apple-cal-header" });
-    const titleWrap = header.createDiv({ cls: "obs-apple-cal-titles" });
-    titleWrap.createEl("h4", { text: "Apple Calendar" });
-    titleWrap.createEl("div", { text: this.subLine(), cls: "obs-apple-cal-sub" });
-
     if (this.loading && this.events.length === 0) {
       el.createEl("p", { text: "Loading…", cls: "obs-apple-cal-muted" });
       return;
@@ -351,18 +342,9 @@ class AppleCalendarView extends ItemView {
       titleEl.setAttribute("title", title);
       const meta = [ev.allDay ? "all-day" : compactTimeRange(ev.start, ev.end)];
       if (ev.calendar) meta.push(ev.calendar);
-      if (ev.location) meta.push(ev.location);
       const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-meta" });
       metaEl.setAttribute("title", meta.join(" · "));
     }
-  }
-
-  /** "Friday, Sep 4" — plus the note name only when it isn't just the date. */
-  private subLine(): string {
-    const day = prettyDay(this.plugin.currentDay);
-    const src = this.plugin.currentDaySource;
-    if (src === "Today" || src.includes(dayStamp(this.plugin.currentDay))) return day;
-    return `${day} · ${src}`;
   }
 }
 
@@ -382,17 +364,6 @@ class AppleCalSettingTab extends PluginSettingTab {
         t.setValue(this.plugin.settings.helperPath).onChange(async (v) => {
           this.plugin.settings.helperPath = v;
           await this.plugin.saveSettings();
-        })
-      );
-    new Setting(containerEl)
-      .setName("Follow open note")
-      .setDesc("Show events for the day of the currently open note. Off = always today.")
-      .addToggle((t) =>
-        t.setValue(this.plugin.settings.followActiveNote).onChange(async (v) => {
-          this.plugin.settings.followActiveNote = v;
-          await this.plugin.saveSettings();
-          this.plugin.updateDayFromActiveFile();
-          this.plugin.refreshAllViews(true);
         })
       );
     const detected = this.plugin.getDailyNotesFormat();

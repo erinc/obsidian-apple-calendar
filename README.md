@@ -23,8 +23,9 @@ the date matcher is derived from Daily Notes' own date format setting
 `DD-MM-YYYY`, or `M-D-YYYY` just work. Formats with month/weekday names
 can't be matched, nor can a disabled Daily Notes — then the "Fallback
 date pattern" regex is used. Notes without a date keep the last shown day;
-with nothing open it falls back to today. Turn "Follow open note" off to
-always show today. Fetched days are cached for 5 minutes.
+with nothing open it falls back to today. Each event shows its title plus
+a one-line `time · calendar` summary (no location). Fetched days are cached
+for 5 minutes.
 
 ## Helper CLI
 
