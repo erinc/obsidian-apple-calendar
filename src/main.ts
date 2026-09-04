@@ -514,8 +514,8 @@ class AppleCalendarView extends ItemView {
       retry.onclick = () => void this.refresh(false, true);
       return;
     }
+    // Empty days render nothing — no placeholder text.
     if (this.events.length === 0) {
-      el.createEl("p", { text: "No events this day.", cls: "obsidian-apple-cal-muted" });
       return;
     }
 

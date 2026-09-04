@@ -97,8 +97,8 @@ format, not automation, so there is no Automation prompt.
   match Daily Notes' format. Switch Daily Notes to a numeric format.
 - *Clicked event doesn't open* — the sidebar shows the reason in a notice.
   Recurring occurrences open their series (occurrences share one ID).
-- *Empty day* — "No events this day." Hidden calendars are the usual
-  suspect; check the Calendars toggles.
+- *Empty day* — the sidebar stays blank. If you expected events, hidden
+  calendars are the usual suspect; check the Calendars toggles.
 
 ## Helper CLI
 
