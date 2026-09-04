@@ -64,10 +64,12 @@ export default class AppleCalendarPlugin extends Plugin {
 
     this.addSettingTab(new AppleCalSettingTab(this.app, this));
 
-    this.registerEvent(this.app.workspace.on("file-open", () => this.onActiveFileChanged()));
+    this.registerEvent(
+      this.app.workspace.on("file-open", () => void this.onActiveFileChanged())
+    );
 
-    this.app.workspace.onLayoutReady(() => {
-      const pattern = this.resolveDatePattern();
+    this.app.workspace.onLayoutReady(async () => {
+      const pattern = await this.resolveDatePattern();
       if (pattern) this.updateDayFromActiveFile(pattern);
       this.activateView(true);
       this.refreshAllViews(true);
@@ -146,57 +148,90 @@ export default class AppleCalendarPlugin extends Plugin {
    * current day so browsing non-journal notes doesn't yank the calendar.
    * Returns true when the day changed.
    */
-  /** Daily Notes date format (moment-style), or null when unavailable. */
-  getDailyNotesFormat(): string | null {
+  /**
+   * What the running Obsidian exposes about Daily Notes. Never throws.
+   * enabled is null when the internal API can't say (very old builds).
+   */
+  dailyNotesRuntime(): { enabled: boolean | null; format: string | null } {
     try {
       const internals = (this.app as any).internalPlugins;
+      if (!internals) return { enabled: null, format: null };
       // getEnabledPluginById returns the instance, or null when disabled.
+      const inst = internals.getEnabledPluginById?.("daily-notes");
       const raw =
-        internals?.getEnabledPluginById?.("daily-notes") ??
-        internals?.getPluginById?.("daily-notes") ??
-        internals?.plugins?.["daily-notes"];
-      if (!raw || raw.enabled === false) return null;
+        internals.getPluginById?.("daily-notes") ?? internals.plugins?.["daily-notes"];
+      const enabled = inst
+        ? true
+        : raw
+          ? raw.enabled === false
+            ? false
+            : null
+          : false;
       // raw is either the instance ({ options }) or a wrapper
       // ({ enabled, instance }) — accept both so version drift can't lock out.
       const format =
-        raw.options?.format ??
-        raw.instance?.options?.format ??
-        raw.data?.format ??
-        raw.instance?.data?.format ??
+        inst?.options?.format ??
+        raw?.options?.format ??
+        raw?.instance?.options?.format ??
+        inst?.data?.format ??
+        raw?.data?.format ??
+        raw?.instance?.data?.format ??
         null;
-      return typeof format === "string" && format ? format : null;
+      return { enabled, format: typeof format === "string" && format ? format : null };
     } catch {
-      return null;
+      return { enabled: null, format: null };
     }
+  }
+
+  /**
+   * Daily Notes date format (moment-style), or null when unavailable.
+   * Current Obsidian only exposes folder/template on the live instance, so
+   * the persisted `.obsidian/daily-notes.json` is the primary source.
+   */
+  async getDailyNotesFormat(): Promise<string | null> {
+    const runtime = this.dailyNotesRuntime();
+    if (runtime.format) return runtime.format;
+    let filePresent = false;
+    let fileFormat: string | null = null;
+    try {
+      const raw = await this.app.vault.adapter.read(
+        `${this.app.vault.configDir}/daily-notes.json`
+      );
+      filePresent = true;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.format === "string" && parsed.format) fileFormat = parsed.format;
+    } catch {
+      // No settings file — fall through to the default below.
+    }
+    // An explicit format wins unless Daily Notes is explicitly disabled.
+    if (fileFormat) return runtime.enabled === false ? null : fileFormat;
+    // Enabled with an empty format field behaves as Obsidian's default.
+    if (runtime.enabled === true || (runtime.enabled === null && filePresent)) {
+      return "YYYY-MM-DD";
+    }
+    return null;
   }
 
   /** One-line diagnostic for the dev console when Daily Notes detection fails. */
-  describeDailyNotesAccess(): string {
+  async describeDailyNotesAccess(): Promise<string> {
+    const runtime = this.dailyNotesRuntime();
+    let file = "unread";
     try {
-      const internals = (this.app as any).internalPlugins;
-      if (!internals) return "daily-notes detect: no app.internalPlugins";
-      const inst =
-        internals.getEnabledPluginById?.("daily-notes") ??
-        internals.getPluginById?.("daily-notes")?.instance ??
-        internals.plugins?.["daily-notes"]?.instance ??
-        internals.plugins?.["daily-notes"];
-      if (!inst || typeof inst !== "object") return "daily-notes detect: no instance";
-      const keys = (o: unknown) =>
-        o && typeof o === "object" ? Object.keys(o).join(",") : String(o);
-      const show = (v: unknown) => (typeof v === "string" ? JSON.stringify(v) : typeof v);
-      return (
-        "daily-notes detect: " +
-        `optionsKeys=[${keys(inst.options)}] options.format=${show(inst.options?.format)} ` +
-        `dataKeys=[${keys(inst.data)}] data.format=${show(inst.data?.format)}`
+      const raw = await this.app.vault.adapter.read(
+        `${this.app.vault.configDir}/daily-notes.json`
       );
+      const parsed = JSON.parse(raw);
+      const show = (v: unknown) => (typeof v === "string" ? JSON.stringify(v) : typeof v);
+      file = `keys=[${Object.keys(parsed ?? {}).join(",")}] format=${show(parsed?.format)}`;
     } catch (e) {
-      return `daily-notes detect: probe threw ${String(e)}`;
+      file = `read failed (${String(e)?.slice(0, 80)})`;
     }
+    return `daily-notes detect: enabled=${String(runtime.enabled)} runtime.format=${JSON.stringify(runtime.format)} file ${file}`;
   }
 
   /** Why date resolution failed, for the sidebar error. Null when resolvable. */
-  dateResolutionError(): string | null {
-    const format = this.getDailyNotesFormat();
+  async dateResolutionError(): Promise<string | null> {
+    const format = await this.getDailyNotesFormat();
     if (!format) {
       return "Daily Notes is required — enable the Daily Notes core plugin with a numeric date format (e.g. YYYY-MM-DD).";
     }
@@ -210,8 +245,8 @@ export default class AppleCalendarPlugin extends Plugin {
    * Matcher derived from Daily Notes only. Null when Daily Notes is
    * disabled or its format is unmatchable (month/weekday names, times).
    */
-  resolveDatePattern(): string | null {
-    const format = this.getDailyNotesFormat();
+  async resolveDatePattern(): Promise<string | null> {
+    const format = await this.getDailyNotesFormat();
     if (!format) return null;
     return momentFormatToRegex(format);
   }
@@ -232,8 +267,8 @@ export default class AppleCalendarPlugin extends Plugin {
     return true;
   }
 
-  onActiveFileChanged() {
-    const pattern = this.resolveDatePattern();
+  async onActiveFileChanged() {
+    const pattern = await this.resolveDatePattern();
     if (!pattern) {
       this.refreshAllViews(true);
       return;
@@ -439,11 +474,11 @@ class AppleCalendarView extends ItemView {
     if (this.loading) return;
     this.loading = true;
     if (!quiet) this.render();
-    const pattern = this.plugin.resolveDatePattern();
+    const pattern = await this.plugin.resolveDatePattern();
     if (!pattern) {
-      console.debug(`[apple-calendar] ${this.plugin.describeDailyNotesAccess()}`);
+      console.debug(`[apple-calendar] ${await this.plugin.describeDailyNotesAccess()}`);
       this.error =
-        this.plugin.dateResolutionError() ??
+        (await this.plugin.dateResolutionError()) ??
         "Daily Notes is required — enable the Daily Notes core plugin with a numeric date format (e.g. YYYY-MM-DD).";
       this.errorHint = "";
       this.loading = false;
