@@ -1,8 +1,7 @@
 .obs-apple-calendar { padding: 6px 8px; font-size: 0.9em; }
 .obs-apple-cal-retry { cursor: pointer; margin-top: 4px; }
-.obs-apple-cal-picklist { margin: 2px 0 12px; border-top: 1px solid var(--background-modifier-border); }
-.obs-apple-cal-pickrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 0; border-bottom: 1px solid var(--background-modifier-border); }
-.obs-apple-cal-pickname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Compact variant of a native settings row: same look, less air. */
+.setting-item.obs-apple-cal-compact { padding-top: 4px; padding-bottom: 4px; }
 .obs-apple-cal-list { list-style: none; margin: 0; padding: 0; }
 .obs-apple-cal-item { padding: 5px 0; border-top: 1px solid var(--background-modifier-border); min-width: 0; }
 .obs-apple-cal-item:first-child { border-top: none; }

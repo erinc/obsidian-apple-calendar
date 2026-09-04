@@ -1,4 +1,4 @@
-import { App, FileSystemAdapter, ItemView, Platform, Plugin, PluginSettingTab, ToggleComponent, WorkspaceLeaf, Notice, Setting } from "obsidian";
+import { App, FileSystemAdapter, ItemView, Platform, Plugin, PluginSettingTab, WorkspaceLeaf, Notice, Setting } from "obsidian";
 import { dayStamp, formatRange, momentFormatToRegex, parseDateFromBasename, startOfDay, toLocalISO } from "./dates";
 
 // Node APIs are only available on desktop. Import lazily so mobile never parses them.
@@ -529,18 +529,20 @@ class AppleCalSettingTab extends PluginSettingTab {
         }
         calSection.setDesc("Uncheck calendars to hide their events. New calendars show by default.");
         const hidden = new Set(this.plugin.settings.hiddenCalendars);
-        const list = containerEl.createDiv({ cls: "obs-apple-cal-picklist" });
         for (const cal of cals) {
-          const row = list.createDiv({ cls: "obs-apple-cal-pickrow" });
-          row.createSpan({ text: cal.title, cls: "obs-apple-cal-pickname" });
-          new ToggleComponent(row).setValue(!hidden.has(cal.id)).onChange(async (v) => {
-            const next = new Set(this.plugin.settings.hiddenCalendars);
-            if (v) next.delete(cal.id);
-            else next.add(cal.id);
-            this.plugin.settings.hiddenCalendars = [...next];
-            await this.plugin.saveSettings();
-            this.plugin.refreshAllViews(true);
-          });
+          new Setting(containerEl)
+            .setClass("obs-apple-cal-compact")
+            .setName(cal.title)
+            .addToggle((t) =>
+              t.setValue(!hidden.has(cal.id)).onChange(async (v) => {
+                const next = new Set(this.plugin.settings.hiddenCalendars);
+                if (v) next.delete(cal.id);
+                else next.add(cal.id);
+                this.plugin.settings.hiddenCalendars = [...next];
+                await this.plugin.saveSettings();
+                this.plugin.refreshAllViews(true);
+              })
+            );
         }
       },
       (err: Error) => {
