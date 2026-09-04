@@ -1,6 +1,6 @@
 {
   "id": "obs-apple-calendar",
-  "name": "Apple Calendar (Read-Only)",
+  "name": "Apple Calendar",
   "version": "0.1.0",
   "minAppVersion": "1.4.0",
   "description": "Read-only sidebar view of macOS Apple Calendar events via a tiny EventKit helper.",

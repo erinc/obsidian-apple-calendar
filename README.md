@@ -1,4 +1,4 @@
-# Apple Calendar (Read-Only) — Obsidian plugin
+# Apple Calendar — Obsidian plugin
 
 macOS desktop-only. Reads events via a tiny Swift EventKit helper, shows them in the right sidebar. No writes.
 
