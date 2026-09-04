@@ -150,15 +150,45 @@ export default class AppleCalendarPlugin extends Plugin {
   getDailyNotesFormat(): string | null {
     try {
       const internals = (this.app as any).internalPlugins;
+      // getEnabledPluginById returns the instance, or null when disabled.
       const raw =
-        internals?.getPluginById?.("daily-notes") ?? internals?.plugins?.["daily-notes"];
+        internals?.getEnabledPluginById?.("daily-notes") ??
+        internals?.getPluginById?.("daily-notes") ??
+        internals?.plugins?.["daily-notes"];
       if (!raw || raw.enabled === false) return null;
-      // getPluginById returns a wrapper ({ enabled, instance }); accept the
-      // bare instance shape too so version drift can't lock the user out.
-      const format = raw.instance?.options?.format ?? raw.options?.format;
+      // raw is either the instance ({ options }) or a wrapper
+      // ({ enabled, instance }) — accept both so version drift can't lock out.
+      const format = raw.options?.format ?? raw.instance?.options?.format;
       return typeof format === "string" && format ? format : null;
     } catch {
       return null;
+    }
+  }
+
+  /** One-line diagnostic for the dev console when Daily Notes detection fails. */
+  describeDailyNotesAccess(): string {
+    try {
+      const internals = (this.app as any).internalPlugins;
+      if (!internals) return "daily-notes detect: no app.internalPlugins";
+      const parts = [
+        `getPluginById=${typeof internals.getPluginById}`,
+        `getEnabledPluginById=${typeof internals.getEnabledPluginById}`,
+        `enabledInstance=${internals.getEnabledPluginById?.("daily-notes") ? "present" : "null"}`,
+      ];
+      const raw =
+        internals.getPluginById?.("daily-notes") ?? internals.plugins?.["daily-notes"];
+      if (!raw) {
+        parts.push("entry=missing");
+      } else {
+        parts.push(
+          `entry.enabled=${String(raw.enabled)}`,
+          `entry.options=${raw.options ? typeof raw.options.format : "absent"}`,
+          `instance.options=${raw.instance?.options ? typeof raw.instance.options.format : "absent"}`
+        );
+      }
+      return `daily-notes detect: ${parts.join(" ")}`;
+    } catch (e) {
+      return `daily-notes detect: probe threw ${String(e)}`;
     }
   }
 
@@ -409,6 +439,7 @@ class AppleCalendarView extends ItemView {
     if (!quiet) this.render();
     const pattern = this.plugin.resolveDatePattern();
     if (!pattern) {
+      console.debug(`[apple-calendar] ${this.plugin.describeDailyNotesAccess()}`);
       this.error =
         this.plugin.dateResolutionError() ??
         "Daily Notes is required — enable the Daily Notes core plugin with a numeric date format (e.g. YYYY-MM-DD).";
