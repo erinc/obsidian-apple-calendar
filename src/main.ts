@@ -26,6 +26,7 @@ interface AppleCalSettings {
   refreshMinutes: number;
   useDailyNotesFormat: boolean;
   datePattern: string;
+  hideSoloTabHeader: boolean;
 }
 
 const DEFAULT_SETTINGS: AppleCalSettings = {
@@ -33,6 +34,7 @@ const DEFAULT_SETTINGS: AppleCalSettings = {
   refreshMinutes: 15,
   useDailyNotesFormat: true,
   datePattern: "(\\d{4})-(\\d{2})-(\\d{2})",
+  hideSoloTabHeader: true,
 };
 
 export default class AppleCalendarPlugin extends Plugin {
@@ -336,12 +338,16 @@ class AppleCalendarView extends ItemView {
    * under the calendar pane), so no redundant tab strip separates the views.
    * Restored automatically when grouped with other tabs.
    */
-  private updateTabChrome() {
+  updateTabChrome() {
     try {
       const leaf = this.leaf as any;
       const header = (leaf?.tabHeaderEl ?? null) as HTMLElement | null;
       if (!header) return;
       const target = (header.closest(".workspace-tab-header-container") as HTMLElement | null) ?? header;
+      if (!this.plugin.settings.hideSoloTabHeader) {
+        target.style.display = "";
+        return;
+      }
       const siblings = (leaf?.parent?.children?.length ?? 1) as number;
       target.style.display = siblings <= 1 ? "none" : "";
     } catch {
@@ -460,6 +466,19 @@ class AppleCalSettingTab extends PluginSettingTab {
         t.setValue(String(this.plugin.settings.refreshMinutes)).onChange(async (v) => {
           this.plugin.settings.refreshMinutes = Number(v) || 0;
           await this.plugin.saveSettings();
+        })
+      );
+    new Setting(containerEl)
+      .setName("Hide tab header when alone")
+      .setDesc("Hides this pane's tab strip when it is the only tab in its group (e.g. stacked under the calendar).")
+      .addToggle((t) =>
+        t.setValue(this.plugin.settings.hideSoloTabHeader).onChange(async (v) => {
+          this.plugin.settings.hideSoloTabHeader = v;
+          await this.plugin.saveSettings();
+          for (const leaf of this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+            const view = leaf.view;
+            if (view instanceof AppleCalendarView) view.updateTabChrome();
+          }
         })
       );
   }
