@@ -158,7 +158,12 @@ export default class AppleCalendarPlugin extends Plugin {
       if (!raw || raw.enabled === false) return null;
       // raw is either the instance ({ options }) or a wrapper
       // ({ enabled, instance }) — accept both so version drift can't lock out.
-      const format = raw.options?.format ?? raw.instance?.options?.format;
+      const format =
+        raw.options?.format ??
+        raw.instance?.options?.format ??
+        raw.data?.format ??
+        raw.instance?.data?.format ??
+        null;
       return typeof format === "string" && format ? format : null;
     } catch {
       return null;
@@ -170,23 +175,20 @@ export default class AppleCalendarPlugin extends Plugin {
     try {
       const internals = (this.app as any).internalPlugins;
       if (!internals) return "daily-notes detect: no app.internalPlugins";
-      const parts = [
-        `getPluginById=${typeof internals.getPluginById}`,
-        `getEnabledPluginById=${typeof internals.getEnabledPluginById}`,
-        `enabledInstance=${internals.getEnabledPluginById?.("daily-notes") ? "present" : "null"}`,
-      ];
-      const raw =
-        internals.getPluginById?.("daily-notes") ?? internals.plugins?.["daily-notes"];
-      if (!raw) {
-        parts.push("entry=missing");
-      } else {
-        parts.push(
-          `entry.enabled=${String(raw.enabled)}`,
-          `entry.options=${raw.options ? typeof raw.options.format : "absent"}`,
-          `instance.options=${raw.instance?.options ? typeof raw.instance.options.format : "absent"}`
-        );
-      }
-      return `daily-notes detect: ${parts.join(" ")}`;
+      const inst =
+        internals.getEnabledPluginById?.("daily-notes") ??
+        internals.getPluginById?.("daily-notes")?.instance ??
+        internals.plugins?.["daily-notes"]?.instance ??
+        internals.plugins?.["daily-notes"];
+      if (!inst || typeof inst !== "object") return "daily-notes detect: no instance";
+      const keys = (o: unknown) =>
+        o && typeof o === "object" ? Object.keys(o).join(",") : String(o);
+      const show = (v: unknown) => (typeof v === "string" ? JSON.stringify(v) : typeof v);
+      return (
+        "daily-notes detect: " +
+        `optionsKeys=[${keys(inst.options)}] options.format=${show(inst.options?.format)} ` +
+        `dataKeys=[${keys(inst.data)}] data.format=${show(inst.data?.format)}`
+      );
     } catch (e) {
       return `daily-notes detect: probe threw ${String(e)}`;
     }
