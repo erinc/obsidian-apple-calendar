@@ -118,8 +118,9 @@ isoOut.formatOptions = [.withInternetDateTime]
 var events: [CalEvent] = []
 events.reserveCapacity(ekEvents.count)
 for ev: EKEvent in ekEvents {
+  // calendarItemIdentifier (not eventIdentifier) matches Calendar.app's AppleScript uid.
   let item = CalEvent(
-    id: ev.eventIdentifier ?? UUID().uuidString,
+    id: ev.calendarItemIdentifier,
     title: ev.title ?? "(no title)",
     start: isoOut.string(from: ev.startDate),
     end: isoOut.string(from: ev.endDate),

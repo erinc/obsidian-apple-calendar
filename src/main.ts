@@ -264,6 +264,52 @@ export default class AppleCalendarPlugin extends Plugin {
       });
     });
   }
+
+  /** Open the event in Calendar.app, matched by uid. Failures surface as a Notice. */
+  openInCalendar(ev: CalEvent): Promise<void> {
+    return new Promise((resolve) => {
+      let spawn: any;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        spawn = require("child_process").spawn;
+      } catch {
+        new Notice("Node child_process is unavailable in this Obsidian build.");
+        resolve();
+        return;
+      }
+      const uid = ev.id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const script = `tell application "Calendar"
+  activate
+  repeat with c in every calendar
+    try
+      show (first event of c whose uid is "${uid}")
+      return
+    end try
+  end repeat
+  error "Event not found in Calendar."
+end tell`;
+      const child = spawn("/usr/bin/osascript", ["-e", script], { timeout: 15000 });
+      let stderr = "";
+      child.stderr?.on("data", (d: Buffer) => (stderr += d.toString()));
+      child.on("error", () => {
+        new Notice("Could not run osascript to open the event.");
+        resolve();
+      });
+      child.on("close", (code: number) => {
+        if (code !== 0) {
+          const detail = stderr.trim();
+          if (/not authorized|not authorised|1743|automation/i.test(detail)) {
+            new Notice(
+              "Obsidian needs Automation permission: System Settings → Privacy & Security → Automation → allow Obsidian to control Calendar, then click again."
+            );
+          } else {
+            new Notice(`Could not open event in Calendar: ${detail || `exit code ${code}`}`);
+          }
+        }
+        resolve();
+      });
+    });
+  }
 }
 
 class AppleCalendarView extends ItemView {
@@ -338,8 +384,9 @@ class AppleCalendarView extends ItemView {
     for (const ev of sorted) {
       const li = ul.createEl("li", { cls: "obs-apple-cal-item" });
       const title = ev.title || "(no title)";
-      const titleEl = li.createEl("div", { text: title, cls: "obs-apple-cal-title" });
-      titleEl.setAttribute("title", title);
+      const titleEl = li.createEl("div", { text: title, cls: "obs-apple-cal-title obs-apple-cal-open" });
+      titleEl.setAttribute("title", `${title} — open in Calendar`);
+      titleEl.onclick = () => void this.plugin.openInCalendar(ev);
       const meta = [ev.allDay ? "all-day" : compactTimeRange(ev.start, ev.end)];
       if (ev.calendar) meta.push(ev.calendar);
       const metaEl = li.createEl("div", { text: meta.join(" · "), cls: "obs-apple-cal-meta" });

@@ -27,6 +27,13 @@ with nothing open it falls back to today. Each event shows its title plus
 a one-line `time · calendar` summary (no location). Fetched days are cached
 for 5 minutes.
 
+## Opening events
+
+Click an event title to open it in Calendar.app (matched by UID via
+AppleScript `show`). First click asks for Automation permission:
+System Settings → Privacy & Security → Automation → allow Obsidian to
+control Calendar.
+
 ## Helper CLI
 
 ```bash
