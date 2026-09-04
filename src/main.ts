@@ -53,7 +53,7 @@ export default class AppleCalendarPlugin extends Plugin {
     this.addCommand({
       id: "refresh-apple-calendar",
       name: "Refresh Apple Calendar",
-      callback: () => this.refreshAllViews(),
+      callback: () => this.refreshAllViews(false, true),
     });
 
     this.addSettingTab(new AppleCalSettingTab(this.app, this));
@@ -106,10 +106,10 @@ export default class AppleCalendarPlugin extends Plugin {
     if (!passive && leaf) workspace.revealLeaf(leaf);
   }
 
-  refreshAllViews(quiet = false) {
+  refreshAllViews(quiet = false, force = false) {
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
       const view = leaf.view;
-      if (view instanceof AppleCalendarView) void view.refresh(quiet);
+      if (view instanceof AppleCalendarView) void view.refresh(quiet, force);
     }
   }
 
@@ -166,10 +166,10 @@ export default class AppleCalendarPlugin extends Plugin {
   }
 
   /** Events for the current day (5-minute in-memory cache per day). */
-  fetchEvents(): Promise<CalEvent[]> {
+  fetchEvents(force = false): Promise<CalEvent[]> {
     const key = dayStamp(this.currentDay);
     const cached = this.eventCache.get(key);
-    if (cached && Date.now() - cached.at < 5 * 60 * 1000) {
+    if (!force && cached && Date.now() - cached.at < 5 * 60 * 1000) {
       return Promise.resolve(cached.events);
     }
     return this.runHelperForDay(this.currentDay).then((events) => {
@@ -272,12 +272,12 @@ class AppleCalendarView extends ItemView {
     await this.refresh(true);
   }
 
-  async refresh(quiet = false) {
+  async refresh(quiet = false, force = false) {
     if (this.loading) return;
     this.loading = true;
     if (!quiet) this.render();
     try {
-      this.events = await this.plugin.fetchEvents();
+      this.events = await this.plugin.fetchEvents(force);
       this.error = "";
     } catch (e: any) {
       this.error = e?.message ?? String(e);
@@ -297,13 +297,6 @@ class AppleCalendarView extends ItemView {
     const titleWrap = header.createDiv({ cls: "obs-apple-cal-titles" });
     titleWrap.createEl("h4", { text: "Apple Calendar" });
     titleWrap.createEl("div", { text: this.subLine(), cls: "obs-apple-cal-sub" });
-    const btn = header.createEl("button", {
-      text: this.loading ? "…" : "↻",
-      cls: "obs-apple-cal-refresh",
-    });
-    btn.setAttribute("title", "Refresh");
-    btn.setAttribute("aria-label", "Refresh");
-    btn.onclick = () => void this.refresh();
 
     if (this.loading && this.events.length === 0) {
       el.createEl("p", { text: "Loading…", cls: "obs-apple-cal-muted" });
@@ -312,9 +305,11 @@ class AppleCalendarView extends ItemView {
     if (this.error && this.events.length === 0) {
       el.createEl("p", { text: this.error, cls: "obs-apple-cal-error" });
       el.createEl("p", {
-        text: "Read-only. Grant Calendars access in System Settings, then Refresh.",
+        text: "Read-only. Grant Calendars access in System Settings, then retry.",
         cls: "obs-apple-cal-muted",
       });
+      const retry = el.createEl("button", { text: "Retry", cls: "obs-apple-cal-retry" });
+      retry.onclick = () => void this.refresh(false, true);
       return;
     }
     if (this.events.length === 0) {
