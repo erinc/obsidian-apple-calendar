@@ -29,10 +29,9 @@ for 5 minutes.
 
 ## Opening events
 
-Click an event title to open it in Calendar.app (matched by UID via
-AppleScript `show`). First click asks for Automation permission:
-System Settings → Privacy & Security → Automation → allow Obsidian to
-control Calendar.
+Click an event title to open it in Calendar.app via its `ical://ekevent/…`
+deep link (no Automation permission needed). A recurring occurrence opens
+its series, since occurrences share one identifier.
 
 ## Helper CLI
 

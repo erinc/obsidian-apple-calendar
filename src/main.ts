@@ -265,7 +265,11 @@ export default class AppleCalendarPlugin extends Plugin {
     });
   }
 
-  /** Open the event in Calendar.app, matched by uid. Failures surface as a Notice. */
+  /**
+   * Open the event in Calendar.app via its ical:// deep link.
+   * Deliberately not AppleScript: an unbounded `whose uid` lookup scans
+   * entire calendars and hangs on large stores. Failures surface as a Notice.
+   */
   openInCalendar(ev: CalEvent): Promise<void> {
     return new Promise((resolve) => {
       let spawn: any;
@@ -277,34 +281,20 @@ export default class AppleCalendarPlugin extends Plugin {
         resolve();
         return;
       }
-      const uid = ev.id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      const script = `tell application "Calendar"
-  activate
-  repeat with c in every calendar
-    try
-      show (first event of c whose uid is "${uid}")
-      return
-    end try
-  end repeat
-  error "Event not found in Calendar."
-end tell`;
-      const child = spawn("/usr/bin/osascript", ["-e", script], { timeout: 15000 });
+      const url = `ical://ekevent/${encodeURIComponent(ev.id)}?method=show&options=more`;
+      const child = spawn("/usr/bin/open", [url], { timeout: 15000 });
       let stderr = "";
       child.stderr?.on("data", (d: Buffer) => (stderr += d.toString()));
-      child.on("error", () => {
-        new Notice("Could not run osascript to open the event.");
+      child.on("error", (err: Error) => {
+        new Notice(`Could not open event in Calendar: ${(err as Error)?.message ?? err}`);
         resolve();
       });
-      child.on("close", (code: number) => {
+      child.on("close", (code: number | null, signal: string | null) => {
         if (code !== 0) {
-          const detail = stderr.trim();
-          if (/not authorized|not authorised|1743|automation/i.test(detail)) {
-            new Notice(
-              "Obsidian needs Automation permission: System Settings → Privacy & Security → Automation → allow Obsidian to control Calendar, then click again."
-            );
-          } else {
-            new Notice(`Could not open event in Calendar: ${detail || `exit code ${code}`}`);
-          }
+          const detail =
+            stderr.trim() ||
+            (signal ? `killed by ${signal} (Calendar may have hung)` : `exit code ${code}`);
+          new Notice(`Could not open event in Calendar: ${detail}`);
         }
         resolve();
       });
